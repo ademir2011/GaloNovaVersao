@@ -1,22 +1,36 @@
 package com.example.ademi.galonovaversao.DAO;
 
+import android.content.Context;
+import android.content.ContextWrapper;
+import android.content.res.AssetManager;
+import android.content.res.Resources;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
 
+import com.example.ademi.galonovaversao.Activities.MainActivity;
+import com.example.ademi.galonovaversao.Classes.DefaultExceptionHandler;
 import com.example.ademi.galonovaversao.Classes.Sistema;
+import com.example.ademi.galonovaversao.R;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStreamWriter;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -33,8 +47,8 @@ public class DAOSDcard {
     List<String> listValues;
     File file;
     String line;
-    String lineArray[];
     BufferedReader br;
+    List<Uri> listFiles;
 
     public DAOSDcard() {
 
@@ -43,47 +57,53 @@ public class DAOSDcard {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                while (true) {
 
-                    enable = false;
+                enable = false;
 
-                    readSdCard(sistema.getPathSdCard() + "config.txt");
+                file = new File(sistema.getPathSdCard() + "config.txt");
 
-                    enable = true;
+                try {
 
-                    try { Thread.sleep(sistema.getDEFAULT_TIME_READ_CONFIG_TXT()); } catch (Exception e) {}
+                    br = new BufferedReader(new FileReader(file));
+                    listFiles = new ArrayList<>();
 
+                    listValues = new ArrayList<>();
+
+                    while ((line = br.readLine()) != null) {
+
+                        listValues.add(line);
+                        Uri uri = Uri.parse( sistema.getPathSdCard()+"assets/"+line );
+                        listFiles.add( uri );
+
+                    }
+
+                    Resources res = sistema.getContext().getResources();
+                    AssetManager am = res.getAssets();
+                    //Log.e(">>", );
+                    String fileList[] = am.list("midia");
+
+                    br.close();
+
+                } catch (FileNotFoundException e) {
+                    Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(sistema.getContext(), MainActivity.class));
+                    e.printStackTrace();
+                } catch (IOException e) {
+
+                } finally {
+                    try {
+                        if (br != null) {
+                            br.close();
+                        }
+                    } catch (IOException ex) {
+                        Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(sistema.getContext(), MainActivity.class));
+                        ex.printStackTrace();
+                    }
                 }
+
+                enable = true;
+
             }
         }).start();
-
-    }
-
-    public void readSdCard(String params) {
-
-        file = new File(params);
-
-        try {
-
-            br = new BufferedReader(new FileReader(file));
-
-            listValues = new ArrayList<>();
-
-            while ((line = br.readLine()) != null) {
-
-                lineArray = line.split("-");
-
-                listValues.add(lineArray[1]);
-
-            }
-
-            br.close();
-
-        } catch (FileNotFoundException e) {
-            sistema.getDaoLog().SendMsgToTxt("Problema arquivo nao encontrado ao ler arquivo config");
-        } catch (IOException e) {
-            sistema.getDaoLog().SendMsgToTxt("Problema i/o ao ler arquivo config");
-        }
 
     }
 
@@ -103,6 +123,11 @@ public class DAOSDcard {
         this.enable = enable;
     }
 
+    public List<Uri> getListFiles() {
+        return listFiles;
+    }
 
-
+    public void setListFiles(List<Uri> listFiles) {
+        this.listFiles = listFiles;
+    }
 }

@@ -9,13 +9,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Toast;
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.Volley;
-import com.example.ademi.galonovaversao.DAO.DAOSDcard;
+import com.example.ademi.galonovaversao.Activities.MainActivity;
 import com.example.ademi.galonovaversao.DAO.DaoAvisos;
 import com.example.ademi.galonovaversao.DAO.DaoDolar;
 import com.example.ademi.galonovaversao.DAO.DaoEstatistica;
@@ -27,9 +21,12 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Calendar;
+
+import okhttp3.OkHttpClient;
 
 /**
  * Created by ademi on 19/06/2016.
@@ -41,79 +38,81 @@ public class Sistema {
     private final String PEP_ID = "1";
     public String pathSdCard = "";
     private final String initLogName = "initLog.txt";
-//    private final int DEFAULT_UPDATE_DOLAR                  = 1 * 1 * 15 * 1000;
-//    private final int DEFAULT_UPDATE_TEMPERATURA            = 1 * 1 * 15 * 1000;
-//    private final int DEFAULT_TIME_SHOW_AVISO               = 1 * 1 * 1 * 500;
-//    private final int DEFAULT_TIME_UPDATE_RSS               = 1 * 1 * 15 * 1000;
-//    private final int DEFAULT_TIME_UPDATE_AVISOS            = 1 * 1 * 15 * 1000;
-//    private final int DEFAULT_TIME_SHOW_PROPAGANDA          = 1 * 1 * 1 * 10;
-//    private final int DEFAULT_TIME_READ_CONFIG_TXT          = 1 * 1 * 30 * 1000;
-//    private final int DEFAULT_TIME_INIT                     = 1 * 1 * 3 * 1000;
+
+    private final int DEFAULT_TIME_INIT                     = 1 * 1 * 5 * 1000;
+    private final int DEFAULT_TIME_WRITE_STATISTICS         = 1 * 1 * 10 * 1000;
+
+    private final int DEFAULT_TIME_UPDATE_DOLAR             = 1 * 1 * 20 * 1000;
+    private final int DEFAULT_TIME_UPDATE_TEMPERATURA       = 1 * 1 * 20 * 1000;
+    private final int DEFAULT_TIME_UPDATE_RSS               = 1 * 1 * 20 * 1000;
+    private final int DEFAULT_TIME_UPDATE_AVISOS            = 1 * 1 * 20 * 1000;
+
+    private final int DEFAULT_TIME_SHOW_AVISO               = 1 * 1 * 1 * 1000;
+    private final int DEFAULT_TIME_SHOW_PROPAGANDA          = 1 * 1 * 1 * 10;
+    private final int DEFAULT_TIME_SHOW_TEMPERATURA         = DEFAULT_TIME_UPDATE_TEMPERATURA/2;
+    private final int DEFAULT_TIME_SHOW_DOLAR               = DEFAULT_TIME_UPDATE_DOLAR/2;
+    private final int DEFAULT_TIME_SHOW_TIME                = 1 * 1 * 1 * 10;
+    private final int DEFAULT_TIME_SHOW_RSS                 = 1 * 1 * 10 * 1000;
+
+//    private final int DEFAULT_TIME_INIT                     = 1 * 2 * 60 * 1000;
 //    private final int DEFAULT_TIME_WRITE_STATISTICS         = 1 * 1 * 10 * 1000;
-//    private final int DEFAULT_TIME_SHOW_TEMPERATURA         = DEFAULT_UPDATE_TEMPERATURA/2;
-//    private final int DEFAULT_TIME_SHOW_DOLAR               = DEFAULT_UPDATE_DOLAR/2;
-//    private final int DEFAULT_TIME_SHOW_TIME                = 1 * 1 * 1 * 10;
+//
+//    private final int DEFAULT_TIME_UPDATE_DOLAR             = 1 * 5 * 60 * 1000;
+//    private final int DEFAULT_TIME_UPDATE_TEMPERATURA       = 1 * 5 * 60 * 1000;
+//    private final int DEFAULT_TIME_UPDATE_RSS               = 5 * 5 * 60 * 1000;
+//    private final int DEFAULT_TIME_UPDATE_AVISOS            = 1 * 5 * 60 * 1000;
+//
+//    private final int DEFAULT_TIME_SHOW_AVISO               = 1 * 1 * 15 * 1000;
+//    private final int DEFAULT_TIME_SHOW_PROPAGANDA          = 1 * 1 * 1 * 200;
+//    private final int DEFAULT_TIME_SHOW_TEMPERATURA         = DEFAULT_TIME_UPDATE_TEMPERATURA/2;
+//    private final int DEFAULT_TIME_SHOW_DOLAR               = DEFAULT_TIME_UPDATE_DOLAR/2;
+//    private final int DEFAULT_TIME_SHOW_TIME                = 1 * 1 * 1 * 450;
+//    private final int DEFAULT_TIME_SHOW_RSS                 = 1 * 5 * 60 * 1000;
 
+    private Handler mHandlerScreen = new Handler(Looper.getMainLooper());
 
-    private final int DEFAULT_UPDATE_DOLAR                = 1 * 5 * 60 * 1000;
-    private final int DEFAULT_UPDATE_TEMPERATURA          = 1 * 5 * 60 * 1000;
-    private final int DEFAULT_TIME_SHOW_AVISO             = 1 * 1 * 15 * 1000;
-    private final int DEFAULT_TIME_UPDATE_RSS             = 1 * 5 * 60 * 1000;
-    private final int DEFAULT_TIME_UPDATE_AVISOS          = 1 * 5 * 60 * 1000;
-    private final int DEFAULT_TIME_SHOW_PROPAGANDA        = 1 * 1 * 1 * 200;
-    private final int DEFAULT_TIME_READ_CONFIG_TXT        = 1 * 1 * 60 * 1000;
-    private final int DEFAULT_TIME_INIT                   = 1 * 1 * 10 * 1000;
-    private final int DEFAULT_TIME_WRITE_STATISTICS       = 1 * 1 * 10 * 1000;
-    private final int DEFAULT_TIME_SHOW_TEMPERATURA       = DEFAULT_UPDATE_TEMPERATURA/2;
-    private final int DEFAULT_TIME_SHOW_DOLAR             = DEFAULT_UPDATE_DOLAR/2;
-    private final int DEFAULT_TIME_SHOW_TIME              = 1 * 1 * 1 * 200;
+    private Handler mHandlerRss = new Handler(Looper.getMainLooper());
 
-    private Handler mHandlerScreen      = new Handler();
+    private Handler mHandlerAvisos = new Handler(Looper.getMainLooper());
 
-    private Handler mHandlerRss         = new Handler();
+    private Handler mHandlerPropaganda = new Handler(Looper.getMainLooper());
 
-    private Handler mHandlerAvisos      = new Handler();
+    private Handler mHandlerTemperatura = new Handler(Looper.getMainLooper());
 
-    private Handler mHandlerPropaganda  = new Handler();
-
-    private Handler mHandlerTemperatura = new Handler();
-
-    private Handler mHandlerDolar       = new Handler();
+    private Handler mHandlerDolar = new Handler(Looper.getMainLooper());
 
     private URL urlAvisos;
 
-    private RequestQueue requestQueue;
+    private final String DEFAULT_MENSSAGE = "Atualizando ou em Manutenção, aguarde. Para mais informações, www.galomidiaavacanda.com.br, anuncie conosco, ótimos planos a partir de R$ 25,00 !";
+    private String cidade = "Natal";
+    private String apikeyweather = "6c44fc59654648e97c2132a1acecd057";
+    private String urlJsonObsTemperatura = "http://api.openweathermap.org/data/2.5/weather?q=" + cidade + ",br&appid=" + apikeyweather;
+    private String urlJsonObjDolar = "http://api.promasters.net.br/cotacao/v1/valores?moedas=USD&alt=json";
+    private String urlRssFonte = "http://g1.globo.com/dynamo/rn/rio-grande-do-norte/rss2.xml";
+    private String urlTime = "http://galomidiaavancada.com.br/gestao/time.php";
 
-    private final String DEFAULT_MENSSAGE   = "Atualizando ou em Manutenção, aguarde. Para mais informações, www.galomidiaavacanda.com.br, anuncie conosco, ótimos planos a partir de R$ 25,00 !";
-    private String cidade                   = "Natal";
-    private String apikeyweather            = "6c44fc59654648e97c2132a1acecd057";
-    private String urlJsonObsTemperatura    = "http://api.openweathermap.org/data/2.5/weather?q="+cidade+",br&appid="+apikeyweather;
-    private String urlJsonObjDolar          = "http://api.promasters.net.br/cotacao/v1/valores?moedas=USD&alt=json";
-    private String urlRssFonte              = "http://g1.globo.com/dynamo/rn/rio-grande-do-norte/rss2.xml";
-
-    private DaoRss          daoRss;
-    private DaoAvisos       daoAvisos;
-    private DaoDolar        daoDolar;
-    private DaoTemperatura  daoTemperatura;
+    private DaoRss daoRss;
+    private DaoAvisos daoAvisos;
+    private DaoDolar daoDolar;
+    private DaoTemperatura daoTemperatura;
     private CheckConnection checkConnection;
-    private DAOSDcard       daosDcard;
-    private DaoLog          daoLog;
-    private DaoEstatistica  daoEstatistica;
+    private DaoLog daoLog;
+    private DaoEstatistica daoEstatistica;
 
-    private Calendar        calendar;
+    private Calendar calendar;
 
-    private Context         context;
-    private String          tokenFirebase = "";
-    private String          messagePushFirebase = "";
-    private String          string64 = "";
+    private Context context;
+    private String tokenFirebase = "";
+    private String messagePushFirebase = "";
+    private String string64 = "";
 
-    private Sistema(Context context){
+    private Sistema(Context context) {
 
         this.context = context;
 
-        if(new File("storage/external_storage/sdcard1/").exists()) {
+        if (new File("storage/external_storage/sdcard1/").exists()) {
             pathSdCard = "storage/external_storage/sdcard1/";
-        } else if(new File("mnt/external_sd/").exists()) {
+        } else if (new File("mnt/external_sd/").exists()) {
             pathSdCard = "mnt/external_sd/";
         }
 
@@ -128,13 +127,11 @@ public class Sistema {
 
         checkConnection = new CheckConnection(context);
 
-        requestQueue = Volley.newRequestQueue(context);
-
         daoLog = new DaoLog();
 
     }
 
-    public synchronized void inicializarAtualizacoes(){
+    public synchronized void inicializarAtualizacoes() {
 
         //--------------- ATUALIZA E EXIBE RSS
 
@@ -152,99 +149,102 @@ public class Sistema {
 
         daoTemperatura = new DaoTemperatura();
 
-        //-------------- ATUALIZA E EXIBE PROPAGANDAS
-
-        daosDcard = new DAOSDcard();
 
         daoLog.SendMsgToTxt(" Classes daos instanciadas ");
 
     }
 
-    public static synchronized Sistema getInstancia(Context context){
+    public static Sistema getInstancia(Context context) {
 
-        if (instancia==null){ instancia = new Sistema(context); }
+        if (instancia == null) {
+            instancia = new Sistema(context);
+        }
 
         return instancia;
 
     }
 
-    public synchronized void configurarHora(){
-        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST,
-                "http://galomidiaavancada.com.br/gestao/time.php", null, new Response.Listener<JSONObject>() {
-            @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
-            @Override
-            public void onResponse(JSONObject response) {
+    public void configurarHora() {
 
-                try {
+        OkHttpClient client = new OkHttpClient();
 
-                    final String time = response.getString("time");
+        okhttp3.Request request = new okhttp3.Request.Builder().url(urlTime).build();
 
-                    String lineArray[] = time.split(":");
+        okhttp3.Response response = null;
 
-                    calendar.set(Calendar.HOUR_OF_DAY, Integer.parseInt(lineArray[0]));
-                    calendar.set(Calendar.MINUTE, Integer.parseInt(lineArray[1]));
-                    calendar.set(Calendar.SECOND, Integer.parseInt(lineArray[2]));
+        try {
 
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            while (true) {
+            response = client.newCall(request).execute();
 
-                                long startTime = System.currentTimeMillis(); // Process start time
+            String json = response.body().string();
 
-                                try {
-                                    Thread.sleep(1000);
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
+            JSONObject jsonObject = new JSONObject(json);
 
-                                long elapsedTime = System.currentTimeMillis() - startTime;
+            final String time = jsonObject.getString("time");
 
-                                calendar.setTimeInMillis( calendar.getTime().getTime() + elapsedTime);
+            String lineArray[] = time.split(":");
 
-                            }
+            calendar.set(Calendar.HOUR_OF_DAY, Integer.parseInt(lineArray[0]));
+            calendar.set(Calendar.MINUTE, Integer.parseInt(lineArray[1]));
+            calendar.set(Calendar.SECOND, Integer.parseInt(lineArray[2]));
+
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    while (true) {
+
+                        long startTime = System.currentTimeMillis(); // Process start time
+
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
                         }
-                    }).start();
 
-                } catch (JSONException e) {
-                    e.printStackTrace();
+                        long elapsedTime = System.currentTimeMillis() - startTime;
+
+                        calendar.setTimeInMillis(calendar.getTime().getTime() + elapsedTime);
+
+                    }
                 }
+            }).start();
 
-            }
-        }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                System.out.append(error.getMessage());
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
 
-            }
-        });
-
-        requestQueue.add(jsonObjectRequest);
     }
 
-    public void showMessage(final String texto, final String position){
+    public void showMessage(final String texto, final String position) {
 
-        Handler handler = new Handler(Looper.getMainLooper());
+        try {
 
-        handler.post(new Runnable() {
-
-            @Override
-            public void run() {
-                Toast toast = Toast.makeText(context, texto, Toast.LENGTH_SHORT);
-
-                if(position.equals("left")){
-                    toast.setGravity(Gravity.LEFT|Gravity.CENTER_VERTICAL, 0, 0);
-                } else if (position.equals("right")) {
-                    toast.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL, 0, 0);
-                } else if (position.equals("bottom")) {
-                    toast.setGravity(Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL, 0, 0);
-                } else if (position.equals("top")){
-                    toast.setGravity(Gravity.TOP|Gravity.CENTER_HORIZONTAL, 0, 0);
-                }
-
-                toast.show();
-            }
-        });
+//        Handler handler = new Handler(Looper.getMainLooper());
+//
+//        handler.post(new Runnable() {
+//
+//            @Override
+//            public void run() {
+//                Toast toast = Toast.makeText(context, texto, Toast.LENGTH_SHORT);
+//
+//                if (position.equals("left")) {
+//                    toast.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL, 0, 0);
+//                } else if (position.equals("right")) {
+//                    toast.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL, 0, 0);
+//                } else if (position.equals("bottom")) {
+//                    toast.setGravity(Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL, 0, 0);
+//                } else if (position.equals("top")) {
+//                    toast.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 0);
+//                }
+//
+//                toast.show();
+//            }
+//        });
+        } catch ( Exception e) {
+            Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(context, MainActivity.class));
+        }
 
     }
 
@@ -263,7 +263,8 @@ public class Sistema {
         try {
             File dir = context.getCacheDir();
             deleteDir(dir);
-        } catch (Exception e) {}
+        } catch (Exception e) {
+        }
     }
 
     public static boolean deleteDir(File dir) {
@@ -276,15 +277,11 @@ public class Sistema {
                 }
             }
             return dir.delete();
-        } else if(dir!= null && dir.isFile()) {
+        } else if (dir != null && dir.isFile()) {
             return dir.delete();
         } else {
             return false;
         }
-    }
-
-    public synchronized void sendToServer(String data){
-        new SendToServer().execute(data);
     }
 
     public Calendar getCalendar() {
@@ -295,7 +292,7 @@ public class Sistema {
         this.calendar = calendar;
     }
 
-    public static synchronized Sistema getInstancia(){
+    public static synchronized Sistema getInstancia() {
         return instancia;
     }
 
@@ -335,12 +332,12 @@ public class Sistema {
         return pathSdCard;
     }
 
-    public int getDEFAULT_UPDATE_DOLAR() {
-        return DEFAULT_UPDATE_DOLAR;
+    public int getDEFAULT_TIME_UPDATE_TEMPERATURA() {
+        return DEFAULT_TIME_UPDATE_TEMPERATURA;
     }
 
-    public int getDEFAULT_UPDATE_TEMPERATURA() {
-        return DEFAULT_UPDATE_TEMPERATURA;
+    public int getDEFAULT_TIME_UPDATE_DOLAR() {
+        return DEFAULT_TIME_UPDATE_DOLAR;
     }
 
     public int getDEFAULT_TIME_SHOW_AVISO() {
@@ -357,10 +354,6 @@ public class Sistema {
 
     public int getDEFAULT_TIME_SHOW_PROPAGANDA() {
         return DEFAULT_TIME_SHOW_PROPAGANDA;
-    }
-
-    public int getDEFAULT_TIME_READ_CONFIG_TXT() {
-        return DEFAULT_TIME_READ_CONFIG_TXT;
     }
 
     public int getDEFAULT_TIME_INIT() {
@@ -409,14 +402,6 @@ public class Sistema {
 
     public void setUrlAvisos(URL urlAvisos) {
         this.urlAvisos = urlAvisos;
-    }
-
-    public RequestQueue getRequestQueue() {
-        return requestQueue;
-    }
-
-    public void setRequestQueue(RequestQueue requestQueue) {
-        this.requestQueue = requestQueue;
     }
 
     public String getDEFAULT_MENSSAGE() {
@@ -503,14 +488,6 @@ public class Sistema {
         this.checkConnection = checkConnection;
     }
 
-    public DAOSDcard getDaosDcard() {
-        return daosDcard;
-    }
-
-    public void setDaosDcard(DAOSDcard daosDcard) {
-        this.daosDcard = daosDcard;
-    }
-
     public DaoLog getDaoLog() {
         return daoLog;
     }
@@ -561,5 +538,9 @@ public class Sistema {
 
     public int getDEFAULT_TIME_SHOW_TIME() {
         return DEFAULT_TIME_SHOW_TIME;
+    }
+
+    public int getDEFAULT_TIME_SHOW_RSS() {
+        return DEFAULT_TIME_SHOW_RSS;
     }
 }

@@ -17,6 +17,10 @@ import com.example.ademi.galonovaversao.Classes.Sistema;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
+
+import okhttp3.OkHttpClient;
+
 /**
  * Created by root on 21/04/16.
  */
@@ -24,6 +28,7 @@ public class DaoDolar {
 
     Sistema sistema;
     private String dolar = "00.00";
+    private String dolarTemp = "00.00";
     private boolean enable = false;
 
     public DaoDolar() {
@@ -38,15 +43,39 @@ public class DaoDolar {
 
                     while(sistema.getCheckConnection().isOnline()){
 
+                        OkHttpClient client = new OkHttpClient();
+
+                        okhttp3.Request request = new okhttp3.Request.Builder().url(sistema.getUrlJsonObjDolar()).build();
+
+                        okhttp3.Response response = null;
+
+                        try {
+
+                            response = client.newCall(request).execute();
+
+                            String json = response.body().string();
+
+                            JSONObject jsonObject = new JSONObject(json);
+
+                            JSONObject obs1 = jsonObject.getJSONObject("valores");
+                            JSONObject obs2 = obs1.getJSONObject("USD");
+                            dolarTemp = obs2.getString(String.valueOf("valor"));
+
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+
                         enable = false;
 
-                        new Update().execute(sistema.getUrlJsonObjDolar());
+                        dolar = dolarTemp;
 
                         enable = true;
 
                         sistema.showMessage("Dolar atualizada", "bottom");
 
-                        try { Thread.sleep(sistema.getDEFAULT_UPDATE_DOLAR()); } catch (InterruptedException e) {}
+                        try { Thread.sleep(sistema.getDEFAULT_TIME_SHOW_DOLAR()); } catch (InterruptedException e) {}
 
                     }
 
@@ -54,44 +83,6 @@ public class DaoDolar {
 
             }
         }).start();
-
-    }
-
-    public class Update extends AsyncTask<String, Void, Void>{
-
-        @Override
-        protected Void doInBackground(String... params) {
-
-            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET,
-                    params[0], null, new Response.Listener<JSONObject>() {
-
-                @Override
-                public void onResponse(JSONObject response) {
-
-                    try {
-
-                        JSONObject obs1 = response.getJSONObject("valores");
-                        JSONObject obs2 = obs1.getJSONObject("USD");
-                        dolar = obs2.getString(String.valueOf("valor"));
-
-                    } catch (JSONException e) {}
-
-                }
-            }, new Response.ErrorListener() {
-
-                @Override
-                public void onErrorResponse(VolleyError error) {
-                    sistema.getDaoLog().SendMsgToTxt("problema ao atualizar dolar");
-                    dolar = "0";
-                }
-
-            });
-
-            sistema.getRequestQueue().add(jsonObjectRequest);
-
-            return null;
-
-        }
 
     }
 

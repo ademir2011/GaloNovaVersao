@@ -1,21 +1,15 @@
 package com.example.ademi.galonovaversao.DAO;
 
-import android.content.Context;
-import android.os.AsyncTask;
 import android.util.Log;
-import android.widget.Toast;
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.VolleyLog;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.example.ademi.galonovaversao.Classes.CheckConnection;
 import com.example.ademi.galonovaversao.Classes.Sistema;
-
 import org.json.JSONException;
 import org.json.JSONObject;
+import java.io.IOException;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+
 
 /**
  * Created by root on 21/04/16.
@@ -24,6 +18,7 @@ public class DaoTemperatura {
 
     Sistema sistema;
     private double temperatura = 0;
+    private double temperaturaTemp = 0;
     private boolean enable = false;
 
     public DaoTemperatura() {
@@ -34,19 +29,47 @@ public class DaoTemperatura {
             @Override
             public void run() {
 
-                while(true){
+                while (true) {
 
-                    while(sistema.getCheckConnection().isOnline()){
+                    while (sistema.getCheckConnection().isOnline()) {
 
-                        enable = false;
+                        OkHttpClient client = new OkHttpClient();
 
-                        new UpdateTemperatura().execute(sistema.getUrlJsonObsTemperatura());
+                        Request request = new Request.Builder().url(sistema.getUrlJsonObsTemperatura()).build();
+
+                        Response response = null;
+
+                        try {
+
+                            response = client.newCall(request).execute();
+
+                            String json = null;
+
+                            json = response.body().string();
+
+                            JSONObject jsonObject = new JSONObject(json);
+
+                            JSONObject obs1 = jsonObject.getJSONObject("main");
+                            temperaturaTemp = obs1.getDouble(String.valueOf("temp"));
+
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
 
                         sistema.showMessage("Temperatura atualizada", "right");
 
+                        enable = false;
+
+                        temperatura = temperaturaTemp;
+
                         enable = true;
 
-                        try { Thread.sleep(sistema.getDEFAULT_UPDATE_TEMPERATURA()); } catch (InterruptedException e) {}
+                        try {
+                            Thread.sleep(sistema.getDEFAULT_TIME_UPDATE_TEMPERATURA());
+                        } catch (InterruptedException e) {
+                        }
 
                     }
 
@@ -54,44 +77,6 @@ public class DaoTemperatura {
 
             }
         }).start();
-
-    }
-
-    public class UpdateTemperatura extends AsyncTask<String, Void, Void>{
-
-        @Override
-        protected Void doInBackground(String... params) {
-
-            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET,
-                    params[0], null, new Response.Listener<JSONObject>() {
-
-                @Override
-                public void onResponse(JSONObject response) {
-
-                    try {
-
-                        JSONObject obs1 = response.getJSONObject("main");
-                        temperatura = obs1.getDouble(String.valueOf("temp"));
-
-                    } catch (JSONException e) {
-                        temperatura = 25;
-                    }
-
-                }
-            }, new Response.ErrorListener() {
-
-                @Override
-                public void onErrorResponse(VolleyError error) {
-                    sistema.getDaoLog().SendMsgToTxt("Problema ao atualizar temperatura");
-                    temperatura = 25;
-                }
-
-            });
-
-            sistema.getRequestQueue().add(jsonObjectRequest);
-
-            return null;
-        }
 
     }
 

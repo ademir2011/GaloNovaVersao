@@ -16,6 +16,7 @@ import com.example.ademi.galonovaversao.Classes.Sistema;
 public class DaoRss {
 
     private String rss = "";
+    private String rssTemp = "";
     private boolean enable = false;
     char character;
     RssReader rssReader;
@@ -35,9 +36,32 @@ public class DaoRss {
 
                     while (sistema.getCheckConnection().isOnline()) {
 
+                        rssReader = new RssReader(sistema.getUrlRssFonte());
+
+                        try {
+
+                            for (RssItem item : rssReader.getItems()){
+
+                                tempTitle = item.getTitle();
+                                tempTitle = tempTitle.replace("\"", "'");
+
+                                character = tempTitle.charAt(0);
+
+                                if (  Character.isUpperCase( character ) ){
+                                    rssTemp += tempTitle + " - Fonte G1 - ";
+                                }
+
+                            }
+
+                        } catch (Exception e) {
+                            rssTemp = sistema.getDEFAULT_MENSSAGE();
+                        }
+
+                        sistema.showMessage("RSS ATUALIZOU !!!", "bottom");
+
                         enable = false;
 
-                        new UpdateRss().execute(sistema.getUrlRssFonte());
+                        rss = rssTemp;
 
                         enable = true;
 
@@ -51,37 +75,6 @@ public class DaoRss {
 
             }
         }).start();
-
-    }
-
-    public class UpdateRss extends AsyncTask<String, Void, Void>{
-
-        @Override
-        protected Void doInBackground(String... params) {
-
-            try {
-
-                rssReader = new RssReader(params[0]);
-
-                for (RssItem item : rssReader.getItems()){
-
-                    tempTitle = item.getTitle();
-                    tempTitle = tempTitle.replace("\"", "'");
-
-                    character = tempTitle.charAt(0);
-
-                    if (  Character.isUpperCase( character ) ){
-                        rss += tempTitle + " - Fonte G1 - ";
-                    }
-
-                }
-
-            } catch (Exception e) {
-                rss = sistema.getDEFAULT_MENSSAGE();
-            }
-
-            return null;
-        }
 
     }
 

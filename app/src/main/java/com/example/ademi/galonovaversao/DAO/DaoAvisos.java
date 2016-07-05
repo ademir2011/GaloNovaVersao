@@ -42,76 +42,63 @@ public class DaoAvisos {
             @Override
             public void run() {
 
-                // TODO Auto-generated method stub
-                while(true){
+            while(true){
 
-                    while (sistema.getCheckConnection().isOnline()) {
+                while (sistema.getCheckConnection().isOnline()) {
+
+                    try {
+
+                        HttpURLConnection urlConnection = null;
 
                         try {
 
-                            new UpdateAvisos().execute(sistema.getUrlAvisos());
+                            urlConnection = (HttpURLConnection) sistema.getUrlAvisos().openConnection();
 
-                            enable = false;
+                            int code = urlConnection.getResponseCode();
 
-                            contadorAvisos = 0;
+                            if (code == 200) {
 
-                            listAvisos = new ArrayList<>(listAvisosTemp);
+                                InputStream in = new BufferedInputStream(urlConnection.getInputStream());
 
-                            enable = true;
+                                if (in != null) {
 
-                            sistema.showMessage("Avisos atualizado", "left");
+                                    BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(in));
 
-                            Thread.sleep(sistema.getDEFAULT_TIME_UPDATE_AVISOS());
+                                    while ((line = bufferedReader.readLine()) != null) {
+                                        listAvisosTemp.add(line);
+                                    }
 
-                        } catch (Exception e) {}
-                    }
+                                }
+                                in.close();
+                            }
 
+                        } catch (IOException e) {
+                            listAvisos.clear();
+                            listAvisos.add(sistema.getDEFAULT_MENSSAGE());
+                        } finally {
+                            assert urlConnection != null;
+                            urlConnection.disconnect();
+                        }
+
+                        enable = false;
+
+                        contadorAvisos = 0;
+
+                        listAvisos = new ArrayList<>(listAvisosTemp);
+
+                        enable = true;
+
+                        sistema.showMessage("Avisos atualizado", "left");
+
+                        Thread.sleep(sistema.getDEFAULT_TIME_UPDATE_AVISOS());
+
+                    } catch (Exception e) {}
                 }
+
+            }
 
             }
         }).start();
-
-    }
-
-    public class UpdateAvisos extends AsyncTask<URL, Void, Void>{
-
-        @Override
-        protected Void doInBackground(URL... params) {
-
-            HttpURLConnection urlConnection = null;
-
-            try {
-
-                urlConnection = (HttpURLConnection) params[0].openConnection();
-
-                int code = urlConnection.getResponseCode();
-
-                if (code == 200) {
-
-                    InputStream in = new BufferedInputStream(urlConnection.getInputStream());
-
-                    if (in != null) {
-
-                        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(in));
-
-                        while ((line = bufferedReader.readLine()) != null) {
-                            listAvisosTemp.add(line);
-                        }
-
-                    }
-                    in.close();
-                }
-
-            } catch (IOException e) {
-                listAvisos.clear();
-                listAvisos.add(sistema.getDEFAULT_MENSSAGE());
-            } finally {
-                assert urlConnection != null;
-                urlConnection.disconnect();
-            }
-
-            return null;
-        }
 
     }
 
@@ -130,7 +117,6 @@ public class DaoAvisos {
     public void setListAvisos(List<String> listAvisos) {
         this.listAvisos = listAvisos;
     }
-
 
     public boolean isEnable() {
         return enable;

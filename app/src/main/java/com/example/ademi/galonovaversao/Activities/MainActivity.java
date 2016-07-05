@@ -1,22 +1,14 @@
 package com.example.ademi.galonovaversao.Activities;
 
-import android.annotation.TargetApi;
-import android.app.ActivityManager;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.drawable.BitmapDrawable;
 import android.media.MediaPlayer;
-import android.os.Build;
-import android.os.Environment;
-import android.os.PowerManager;
+
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.text.TextUtils;
 import android.text.method.ScrollingMovementMethod;
-import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
@@ -26,15 +18,15 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.VideoView;
 
+import com.example.ademi.galonovaversao.Classes.DefaultExceptionHandler;
+import com.example.ademi.galonovaversao.Classes.FirstService;
 import com.example.ademi.galonovaversao.Classes.Sistema;
+import com.example.ademi.galonovaversao.DAO.DAOSDcard;
 import com.example.ademi.galonovaversao.R;
-import com.squareup.picasso.Picasso;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.List;
 
 import butterknife.Bind;
@@ -53,18 +45,20 @@ public class MainActivity extends AppCompatActivity {
     @Bind(R.id.rlRoot) RelativeLayout rlRoot;
 
     Sistema sistema;
-
-    @Override
-    public boolean moveTaskToBack(boolean nonRoot) {
-        return super.moveTaskToBack(false);
-    }
+    private DAOSDcard daosDcard;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        startService(new Intent(this, FirstService.class));
+
         ButterKnife.bind(this);
+
+//        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+//        getWindow().addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+//        getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
 
         tvRssBottomMain.setMovementMethod(new ScrollingMovementMethod());
         tvRssBottomMain.setSelected(true);
@@ -75,18 +69,65 @@ public class MainActivity extends AppCompatActivity {
 
         sistema.getDaoLog().SendMsgToTxt("----------- Sistema iniciado -----------");
 
+        new Thread(
+            new Runnable() {
+                @Override
+                public void run() {
+
+//                    while(true){
+//
+//                        try {
+//                            Thread.sleep(15000);
+//                        } catch (InterruptedException e) {
+//                            e.printStackTrace();
+//                        }
+//
+//                        throw new RuntimeException("This is a crash");
+//
+//                    }
+
+                }
+            }
+        ).start();
+
+        try {
+            //-------------- ATUALIZA E EXIBE PROPAGANDAS
+            daosDcard = new DAOSDcard();
+            showPropagandas();
+        } catch (Exception e) {
+            Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(this, MainActivity.class));
+        }
+
         new Thread(new Runnable() {
             @Override
             public void run() {
 
-                try { Thread.sleep(sistema.getDEFAULT_TIME_INIT()); } catch (InterruptedException e) {}
+                try {
+
+                    int count = 0;
+
+                    while( (count*1000) < sistema.getDEFAULT_TIME_INIT() ){
+
+                        sistema.showMessage(String.valueOf(count),"top");
+
+                        count++;
+
+                        Thread.sleep(1000);
+
+                    }
+
+                } catch (InterruptedException e) {
+                    Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
+                }
 
                 while (!sistema.getCheckConnection().isOnline()) {
                     try {
                         sistema.getDaoLog().SendMsgToTxt(" Dispositivo sem internet ");
                         sistema.showMessage("Sem internet", "top");
                         Thread.sleep(1000);
-                    } catch (InterruptedException e) {}
+                    } catch (InterruptedException e) {
+                        Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
+                    }
                 }
 
                 if(sistema.getCheckConnection().isOnline()){
@@ -96,18 +137,19 @@ public class MainActivity extends AppCompatActivity {
                     sistema.configurarHora();
 
                     if(sistema.getCalendar().get(sistema.getCalendar().HOUR_OF_DAY) == 21 &&
-                        sistema.getCalendar().get(sistema.getCalendar().MINUTE) == 0 ){
+                        sistema.getCalendar().get(sistema.getCalendar().MINUTE) < 15 ){
                         boolean close = false;
                         while(!close){
-                            sistema.inicializarAtualizacoes();
-                            if(sistema.getCalendar().get(sistema.getCalendar().HOUR_OF_DAY) != 21 &&
-                                    sistema.getCalendar().get(sistema.getCalendar().MINUTE) != 0) { close = true; }
+                            sistema.configurarHora();
+                            if(sistema.getCalendar().get(sistema.getCalendar().HOUR_OF_DAY) != 21 && sistema.getCalendar().get(sistema.getCalendar().MINUTE) != 0) { close = true; }
                         }
-                    } else {
-                        sistema.inicializarAtualizacoes();
-                    }
+                    } else {}
 
-                    try { executaAtualizacoes(); } catch (IOException e) { sistema.getDaoLog().SendMsgToTxt(" problema ao exibir no display "); }
+                    sistema.inicializarAtualizacoes();
+                    try { executaAtualizacoes(); } catch (IOException e) {
+                        sistema.getDaoLog().SendMsgToTxt(" problema ao exibir no display ");
+                        Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
+                    }
 
                     sistema.showMessage("Com internet", "top");
                     sistema.showMessage("Inicialização finalizada", "right");
@@ -116,7 +158,6 @@ public class MainActivity extends AppCompatActivity {
 
             }
         }).start();
-
 
     }
 
@@ -138,9 +179,9 @@ public class MainActivity extends AppCompatActivity {
 
                 listValueMain = new ArrayList<>();
 
-                while (true) {
+                while(true){
 
-                    if (sistema.getDaosDcard().isEnable()) {
+                    if(daosDcard.isEnable()) {
 
                         if (!showPb) {
                             runOnUiThread(new Runnable() {
@@ -150,13 +191,14 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             });
                             showPb = true;
-                            listValueMain = sistema.getDaosDcard().getListValues();
+                            listValueMain = daosDcard.getListValues();
                         }
 
                         hora        = sistema.getCalendar().get(sistema.getCalendar().HOUR_OF_DAY);
                         segundos    = sistema.getCalendar().get(sistema.getCalendar().SECOND);
 
-                        if (secondTemp != segundos &&  ( segundos == 0 || segundos == 15 || segundos == 30 || segundos == 45) ) {
+//                        if (secondTemp != segundos &&  ( segundos == 0 || segundos == 15 || segundos == 30 || segundos == 45) ) {
+                        if (secondTemp != segundos &&  ( segundos%3==0 ) ) {
                             secondTemp = segundos;
 
                             if (hora >= 6 && hora <= 7) {
@@ -199,7 +241,7 @@ public class MainActivity extends AppCompatActivity {
 
                                 value = listValueMain.get(cont++);
 
-                            } else if (hora >= 21 && hora <= 5) {
+                            } else if ((hora >= 21 && hora <= 23) || (hora >= 0 && hora <= 5)) {
 
                                 if (cont < 23 || cont > 34) {
                                     cont = 23;
@@ -212,13 +254,14 @@ public class MainActivity extends AppCompatActivity {
                             Log.e("PROPAGANDA", "EXIBIDA - " + value + " - seconds: " + segundos + " count: " + (cont - 1));
 
                             sistema.getmHandlerPropaganda().post(new Runnable() {
-
                                 @Override
                                 public void run() {
 
                                     try {
 
                                         fileSDcard = new File(sistema.getPathSdCard() + "assets/" + value);
+
+//                                        fileSDcard = daosDcard.getListFiles().get(cont-1);
 
                                         formato = value.substring(value.lastIndexOf(".") + 1);
 
@@ -256,6 +299,7 @@ public class MainActivity extends AppCompatActivity {
 
                                             } catch (Exception e) {
 
+                                                Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
                                                 vvPropagandaMain.setVisibility(View.GONE);
                                                 ivPropagandaMain.setVisibility(View.VISIBLE);
                                                 ivPropagandaMain.setImageBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.pep003));
@@ -269,11 +313,12 @@ public class MainActivity extends AppCompatActivity {
                                                 vvPropagandaMain.setVisibility(View.GONE);
                                                 ivPropagandaMain.setVisibility(View.VISIBLE);
 
-                                                Bitmap bm = decodeSampledBitmapFromResource(fileSDcard.getAbsolutePath(), 1870, 824);
-                                                ivPropagandaMain.setImageBitmap(bm);
-
+//                                                Bitmap bm = decodeSampledBitmapFromResource(fileSDcard.getAbsolutePath(), 1870, 824);
+//                                                ivPropagandaMain.setImageBitmap(bm);
+                                                ivPropagandaMain.setImageURI( daosDcard.getListFiles().get(cont-1) );
                                             } catch (Exception e) {
 
+                                                Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
                                                 vvPropagandaMain.setVisibility(View.GONE);
                                                 ivPropagandaMain.setVisibility(View.VISIBLE);
                                                 ivPropagandaMain.setImageBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.pep003));
@@ -286,9 +331,8 @@ public class MainActivity extends AppCompatActivity {
                                     }
 
                                 }
-                            });
 
-                            sistema.deleteCache(MainActivity.this);
+                            });
 
                         } else {
                             secondTemp = segundos;
@@ -299,18 +343,18 @@ public class MainActivity extends AppCompatActivity {
                         Thread.sleep(sistema.getDEFAULT_TIME_SHOW_PROPAGANDA());
                     } catch (InterruptedException e) {
                         e.printStackTrace();
+                        Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
                     }
 
                 }
+
             }
         }).start();
-
 
     }
 
     public static int calculateInSampleSize(BitmapFactory.Options options,
                                             int reqWidth, int reqHeight) {
-        // Raw height and width of image
         final int height = options.outHeight;
         final int width = options.outWidth;
         int inSampleSize = 1;
@@ -319,9 +363,6 @@ public class MainActivity extends AppCompatActivity {
             final int halfHeight = height / 2;
             final int halfWidth = width / 2;
 
-            // Calculate the largest inSampleSize value that is a power of 2 and
-            // keeps both
-            // height and width larger than the requested height and width.
             while ((halfHeight / inSampleSize) > reqHeight
                     && (halfWidth / inSampleSize) > reqWidth) {
                 inSampleSize *= 2;
@@ -332,14 +373,11 @@ public class MainActivity extends AppCompatActivity {
 
     public static Bitmap decodeSampledBitmapFromResource(String strPath, int reqWidth, int reqHeight) {
 
-        // First decode with inJustDecodeBounds=true to check dimensions
         final BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(strPath, options);
-        // Calculate inSampleSize
         options.inSampleSize = calculateInSampleSize(options, reqWidth,
                 reqHeight);
-        // Decode bitmap with inSampleSize set
         options.inJustDecodeBounds = false;
         return BitmapFactory.decodeFile(strPath, options);
     }
@@ -350,14 +388,12 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
 
-                while (true) {
+                while(true) {
 
-                    if (sistema.getDaoAvisos().isEnable()) {
-
-                        sistema.getmHandlerRss().post(new Runnable() {
-
-                            @Override
-                            public void run() {
+                    sistema.getmHandlerAvisos().post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (sistema.getDaoAvisos().isEnable()) {
 
                                 try {
 
@@ -371,23 +407,26 @@ public class MainActivity extends AppCompatActivity {
 
                                 } catch (Exception e) {
                                     tvAvisosMain.setText(sistema.getDEFAULT_MENSSAGE());
+                                    Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
                                 }
 
                             }
-                        });
-
-                        try {
-                            Thread.sleep(sistema.getDEFAULT_TIME_SHOW_AVISO());
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
                         }
+                    });
 
+                    try {
+                        Thread.sleep(sistema.getDEFAULT_TIME_SHOW_AVISO());
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                        Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
                     }
 
                 }
 
             }
+
         }).start();
+
     }
 
     private void showRss() {
@@ -396,7 +435,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
 
-                while (true) {
+                while(true) {
 
                     if (sistema.getDaoRss().isEnable()) {
 
@@ -404,32 +443,30 @@ public class MainActivity extends AppCompatActivity {
 
                         try {
 
-                            sistema.getmHandlerAvisos().post(new Runnable() {
+                            sistema.getmHandlerRss().post(new Runnable() {
 
                                 @Override
                                 public void run() {
 
                                     tvRssBottomMain.setText(sistema.getDaoRss().getRss());
 
-
                                 }
+
                             });
 
                         } catch (Exception e) {
                             sistema.getDaoLog().SendMsgToTxt("problema ao exibir/atualizar rss");
+                            Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
                         }
-                    }
 
-                    try {
-                        Thread.sleep(5 * 1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
                     }
 
                 }
 
             }
+
         }).start();
+
     }
 
     double valorDodolar;
@@ -441,7 +478,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
 
-                while (true) {
+                while(true) {
 
                     sistema.getmHandlerScreen().post(new Runnable() {
                         @Override
@@ -480,7 +517,8 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         Thread.sleep(sistema.getDEFAULT_TIME_SHOW_TIME());
                     } catch (InterruptedException e) {
-                        sistema.getDaoLog().SendMsgToTxt(" problema ao exibir temperatura/dolar/hora ");
+                        Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
+                        e.printStackTrace();
                     }
 
                 }
@@ -498,8 +536,6 @@ public class MainActivity extends AppCompatActivity {
 
         //-------------- UPDATE SCREEN
 
-        showPropagandas();
-
         showTimeTemperaturaDolar();
 
         showRss();
@@ -508,12 +544,6 @@ public class MainActivity extends AppCompatActivity {
 
         sistema.getDaoLog().SendMsgToTxt(" Itens exibidos na tela com sucesso ");
 
-    }
-
-    @Override
-    protected void onResume() {
-        onStart();
-        super.onResume();
     }
 
     /**
@@ -529,11 +559,6 @@ public class MainActivity extends AppCompatActivity {
         context.startActivity(restart);
     }
 
-    @Override
-    public void onBackPressed() {
-        moveTaskToBack(false);
-    }
-
     public static double round(double value, int places) {
         if (places < 0) throw new IllegalArgumentException();
 
@@ -543,5 +568,28 @@ public class MainActivity extends AppCompatActivity {
         return (double) tmp / factor;
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+//        restartApp(this);
+    }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+//        restartApp(this);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+//        restartApp(this);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+//        restartApp(this);
+
+    }
 }
