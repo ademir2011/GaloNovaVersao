@@ -2,6 +2,8 @@ package com.example.ademi.galonovaversao.Classes;
 
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -39,19 +41,19 @@ public class Sistema {
     public String pathSdCard = "";
     private final String initLogName = "initLog.txt";
 
-    private final int DEFAULT_TIME_INIT                     = 1 * 1 * 5 * 1000;
+    private final int DEFAULT_TIME_INIT                     = 1 * 1 * 2 * 1000;
     private final int DEFAULT_TIME_WRITE_STATISTICS         = 1 * 1 * 10 * 1000;
 
-    private final int DEFAULT_TIME_UPDATE_DOLAR             = 1 * 1 * 20 * 1000;
-    private final int DEFAULT_TIME_UPDATE_TEMPERATURA       = 1 * 1 * 20 * 1000;
-    private final int DEFAULT_TIME_UPDATE_RSS               = 1 * 1 * 20 * 1000;
-    private final int DEFAULT_TIME_UPDATE_AVISOS            = 1 * 1 * 20 * 1000;
+    private final int DEFAULT_TIME_UPDATE_DOLAR             = 1 * 30 * 60 * 1000;
+    private final int DEFAULT_TIME_UPDATE_TEMPERATURA       = 1 * 30 * 60 * 1000;
+    private final int DEFAULT_TIME_UPDATE_RSS               = 3 * 60 * 60 * 1000;
+    private final int DEFAULT_TIME_UPDATE_AVISOS            = 1 * 5 * 60 * 1000;
 
-    private final int DEFAULT_TIME_SHOW_AVISO               = 1 * 1 * 1 * 1000;
-    private final int DEFAULT_TIME_SHOW_PROPAGANDA          = 1 * 1 * 1 * 10;
+    private final int DEFAULT_TIME_SHOW_AVISO               = 1 * 1 * 15 * 1000;
+    private final int DEFAULT_TIME_SHOW_PROPAGANDA          = 1 * 1 * 1 * 300;
     private final int DEFAULT_TIME_SHOW_TEMPERATURA         = DEFAULT_TIME_UPDATE_TEMPERATURA/2;
     private final int DEFAULT_TIME_SHOW_DOLAR               = DEFAULT_TIME_UPDATE_DOLAR/2;
-    private final int DEFAULT_TIME_SHOW_TIME                = 1 * 1 * 1 * 10;
+    private final int DEFAULT_TIME_SHOW_TIME                = 1 * 1 * 1 * 400;
     private final int DEFAULT_TIME_SHOW_RSS                 = 1 * 1 * 10 * 1000;
 
 //    private final int DEFAULT_TIME_INIT                     = 1 * 2 * 60 * 1000;
@@ -221,29 +223,29 @@ public class Sistema {
 
         try {
 
-//        Handler handler = new Handler(Looper.getMainLooper());
-//
-//        handler.post(new Runnable() {
-//
-//            @Override
-//            public void run() {
-//                Toast toast = Toast.makeText(context, texto, Toast.LENGTH_SHORT);
-//
-//                if (position.equals("left")) {
-//                    toast.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL, 0, 0);
-//                } else if (position.equals("right")) {
-//                    toast.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL, 0, 0);
-//                } else if (position.equals("bottom")) {
-//                    toast.setGravity(Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL, 0, 0);
-//                } else if (position.equals("top")) {
-//                    toast.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 0);
-//                }
-//
-//                toast.show();
-//            }
-//        });
+        Handler handler = new Handler(Looper.getMainLooper());
+
+        handler.post(new Runnable() {
+
+            @Override
+            public void run() {
+                Toast toast = Toast.makeText(context, texto, Toast.LENGTH_SHORT);
+
+                if (position.equals("left")) {
+                    toast.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL, 0, 0);
+                } else if (position.equals("right")) {
+                    toast.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL, 0, 0);
+                } else if (position.equals("bottom")) {
+                    toast.setGravity(Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL, 0, 0);
+                } else if (position.equals("top")) {
+                    toast.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 0);
+                }
+
+                toast.show();
+            }
+        });
         } catch ( Exception e) {
-            Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(context, MainActivity.class));
+
         }
 
     }
@@ -257,6 +259,15 @@ public class Sistema {
                         | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                         | View.SYSTEM_UI_FLAG_IMMERSIVE);
 
+    }
+
+    public double round(double value, int places) {
+        if (places < 0) throw new IllegalArgumentException();
+
+        long factor = (long) Math.pow(10, places);
+        value = value * factor;
+        long tmp = Math.round(value);
+        return (double) tmp / factor;
     }
 
     public static void deleteCache(Context context) {

@@ -33,15 +33,17 @@ public class DaoDolar {
 
     public DaoDolar() {
 
-        sistema = Sistema.getInstancia();
-
         new Thread(new Runnable() {
             @Override
             public void run() {
 
+                sistema = Sistema.getInstancia();
+
                 while(true){
 
-                    while(sistema.getCheckConnection().isOnline()){
+                    if (sistema.getCheckConnection().isOnline()){
+
+                        dolarTemp = "";
 
                         OkHttpClient client = new OkHttpClient();
 
@@ -75,8 +77,11 @@ public class DaoDolar {
 
                         sistema.showMessage("Dolar atualizada", "bottom");
 
-                        try { Thread.sleep(sistema.getDEFAULT_TIME_SHOW_DOLAR()); } catch (InterruptedException e) {}
+                    }
 
+                    try { Thread.sleep(sistema.getDEFAULT_TIME_UPDATE_DOLAR()); } catch (InterruptedException e) {
+                        android.os.Process.killProcess(android.os.Process.myPid());
+                        System.exit(0);
                     }
 
                 }

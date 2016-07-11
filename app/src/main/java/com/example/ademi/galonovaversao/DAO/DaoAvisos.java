@@ -32,21 +32,24 @@ public class DaoAvisos {
 
     public DaoAvisos() {
 
-        sistema = Sistema.getInstancia();
-
-        listAvisos = new ArrayList<>();
-        listAvisosTemp = new ArrayList<>();
-        listAvisos.add(sistema.getDEFAULT_MENSSAGE());
-
         new Thread(new Runnable() {
             @Override
             public void run() {
 
+            sistema = Sistema.getInstancia();
+
+            listAvisos = new ArrayList<>();
+
+            listAvisos.add(sistema.getDEFAULT_MENSSAGE());
+
             while(true){
 
-                while (sistema.getCheckConnection().isOnline()) {
+                if (sistema.getCheckConnection().isOnline()) {
 
                     try {
+
+                        listAvisos = new ArrayList<>();
+                        listAvisosTemp = new ArrayList<>();
 
                         HttpURLConnection urlConnection = null;
 
@@ -90,9 +93,16 @@ public class DaoAvisos {
 
                         sistema.showMessage("Avisos atualizado", "left");
 
-                        Thread.sleep(sistema.getDEFAULT_TIME_UPDATE_AVISOS());
+                    } catch (Exception e) {  }
 
-                    } catch (Exception e) {}
+                }
+
+                try {
+                    Thread.sleep(sistema.getDEFAULT_TIME_UPDATE_AVISOS());
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                    android.os.Process.killProcess(android.os.Process.myPid());
+                    System.exit(0);
                 }
 
             }

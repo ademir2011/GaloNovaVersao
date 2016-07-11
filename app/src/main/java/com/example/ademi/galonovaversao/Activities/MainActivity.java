@@ -6,6 +6,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.MediaPlayer;
 
+import android.os.Environment;
+import android.os.PowerManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
@@ -18,14 +20,15 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.VideoView;
 
-import com.example.ademi.galonovaversao.Classes.DefaultExceptionHandler;
-import com.example.ademi.galonovaversao.Classes.FirstService;
 import com.example.ademi.galonovaversao.Classes.Sistema;
 import com.example.ademi.galonovaversao.DAO.DAOSDcard;
 import com.example.ademi.galonovaversao.R;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,23 +45,25 @@ public class MainActivity extends AppCompatActivity {
     @Bind(R.id.pbLoading) ProgressBar pbLoading;
     @Bind(R.id.vvPropagandaMain) VideoView vvPropagandaMain;
     @Bind(R.id.tvRssBottomMain) TextView tvRssBottomMain;
-    @Bind(R.id.rlRoot) RelativeLayout rlRoot;
 
     Sistema sistema;
     private DAOSDcard daosDcard;
+    PowerManager.WakeLock wakeLock;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        startService(new Intent(this, FirstService.class));
-
         ButterKnife.bind(this);
 
-//        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-//        getWindow().addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
-//        getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "no sleep");
+        wakeLock.acquire();
+
+        //                        sistema.getDaoLog().SendMsgToTxt(" Dispositivo com internet ");
 
         tvRssBottomMain.setMovementMethod(new ScrollingMovementMethod());
         tvRssBottomMain.setSelected(true);
@@ -66,37 +71,6 @@ public class MainActivity extends AppCompatActivity {
         sistema = Sistema.getInstancia(this);
 
         sistema.fullscreen(getWindow().getDecorView());
-
-        sistema.getDaoLog().SendMsgToTxt("----------- Sistema iniciado -----------");
-
-        new Thread(
-            new Runnable() {
-                @Override
-                public void run() {
-
-//                    while(true){
-//
-//                        try {
-//                            Thread.sleep(15000);
-//                        } catch (InterruptedException e) {
-//                            e.printStackTrace();
-//                        }
-//
-//                        throw new RuntimeException("This is a crash");
-//
-//                    }
-
-                }
-            }
-        ).start();
-
-        try {
-            //-------------- ATUALIZA E EXIBE PROPAGANDAS
-            daosDcard = new DAOSDcard();
-            showPropagandas();
-        } catch (Exception e) {
-            Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(this, MainActivity.class));
-        }
 
         new Thread(new Runnable() {
             @Override
@@ -108,7 +82,7 @@ public class MainActivity extends AppCompatActivity {
 
                     while( (count*1000) < sistema.getDEFAULT_TIME_INIT() ){
 
-                        sistema.showMessage(String.valueOf(count),"top");
+                        sistema.showMessage(String.valueOf(count++),"top");
 
                         count++;
 
@@ -117,42 +91,33 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                 } catch (InterruptedException e) {
-                    Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
                 }
 
-                while (!sistema.getCheckConnection().isOnline()) {
-                    try {
-                        sistema.getDaoLog().SendMsgToTxt(" Dispositivo sem internet ");
-                        sistema.showMessage("Sem internet", "top");
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
-                    }
-                }
+                //-------------- ATUALIZA E EXIBE PROPAGANDAS
+                daosDcard = new DAOSDcard();
+                showPropagandas();
 
-                if(sistema.getCheckConnection().isOnline()){
+                boolean close = false;
 
-                    sistema.getDaoLog().SendMsgToTxt(" Dispositivo com internet ");
+                while(!close){
 
-                    sistema.configurarHora();
+                    if(sistema.getCheckConnection().isOnline()){
 
-                    if(sistema.getCalendar().get(sistema.getCalendar().HOUR_OF_DAY) == 21 &&
-                        sistema.getCalendar().get(sistema.getCalendar().MINUTE) < 15 ){
-                        boolean close = false;
-                        while(!close){
-                            sistema.configurarHora();
-                            if(sistema.getCalendar().get(sistema.getCalendar().HOUR_OF_DAY) != 21 && sistema.getCalendar().get(sistema.getCalendar().MINUTE) != 0) { close = true; }
+                        sistema.configurarHora();
+
+                        sistema.inicializarAtualizacoes();
+
+                        try {
+                            executaAtualizacoes();
+                        } catch (IOException e) {
+                            e.printStackTrace();
                         }
-                    } else {}
 
-                    sistema.inicializarAtualizacoes();
-                    try { executaAtualizacoes(); } catch (IOException e) {
-                        sistema.getDaoLog().SendMsgToTxt(" problema ao exibir no display ");
-                        Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
+                        sistema.showMessage("Inicialização finalizada", "right");
+
+                        close = true;
+
                     }
-
-                    sistema.showMessage("Com internet", "top");
-                    sistema.showMessage("Inicialização finalizada", "right");
 
                 }
 
@@ -160,6 +125,8 @@ public class MainActivity extends AppCompatActivity {
         }).start();
 
     }
+
+
 
     boolean showPb = false;
     public String value;
@@ -197,8 +164,9 @@ public class MainActivity extends AppCompatActivity {
                         hora        = sistema.getCalendar().get(sistema.getCalendar().HOUR_OF_DAY);
                         segundos    = sistema.getCalendar().get(sistema.getCalendar().SECOND);
 
-//                        if (secondTemp != segundos &&  ( segundos == 0 || segundos == 15 || segundos == 30 || segundos == 45) ) {
-                        if (secondTemp != segundos &&  ( segundos%3==0 ) ) {
+                        if (secondTemp != segundos &&  ( segundos%15==0 ) ) {
+//                        if (secondTemp != segundos &&  ( segundos%5==0 ) ) {
+//                        if (secondTemp != segundos &&  ( segundos%30==0 ) ) {
                             secondTemp = segundos;
 
                             if (hora >= 6 && hora <= 7) {
@@ -257,77 +225,69 @@ public class MainActivity extends AppCompatActivity {
                                 @Override
                                 public void run() {
 
-                                    try {
+                                    fileSDcard = new File(sistema.getPathSdCard() + "assets/" + value);
 
-                                        fileSDcard = new File(sistema.getPathSdCard() + "assets/" + value);
+                                    formato = value.substring(value.lastIndexOf(".") + 1);
 
-//                                        fileSDcard = daosDcard.getListFiles().get(cont-1);
+                                    if (formato.equals("mp4")) {
 
-                                        formato = value.substring(value.lastIndexOf(".") + 1);
+                                        try {
 
-                                        if (formato.equals("mp4")) {
+                                            ivPropagandaMain.setVisibility(View.GONE);
+                                            vvPropagandaMain.setVisibility(View.VISIBLE);
 
-                                            try {
+                                            if (fileSDcard.getAbsolutePath().equals("") || fileSDcard.getAbsolutePath() == null) {
+                                                vvPropagandaMain.setVisibility(View.GONE);
+                                                ivPropagandaMain.setVisibility(View.VISIBLE);
+                                                ivPropagandaMain.setImageBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.pep003));
+                                            }
 
-                                                ivPropagandaMain.setVisibility(View.GONE);
-                                                vvPropagandaMain.setVisibility(View.VISIBLE);
+                                            vvPropagandaMain.setVideoPath(returnPath(value));
 
-                                                if (fileSDcard.getAbsolutePath().equals("") || fileSDcard.getAbsolutePath() == null) {
+                                            vvPropagandaMain.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                                                @Override
+                                                public void onPrepared(MediaPlayer mp) {
+                                                    vvPropagandaMain.start();
+                                                }
+                                            });
+
+                                            vvPropagandaMain.setOnErrorListener(new MediaPlayer.OnErrorListener() {
+                                                @Override
+                                                public boolean onError(MediaPlayer mp, int what, int extra) {
+                                                    //vvPropagandaMain.stopPlayback();
                                                     vvPropagandaMain.setVisibility(View.GONE);
                                                     ivPropagandaMain.setVisibility(View.VISIBLE);
                                                     ivPropagandaMain.setImageBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.pep003));
+                                                    return true;
                                                 }
+                                            });
 
-                                                vvPropagandaMain.setVideoPath(fileSDcard.getAbsolutePath());
-                                                vvPropagandaMain.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-                                                    @Override
-                                                    public void onPrepared(MediaPlayer mp) {
-                                                        vvPropagandaMain.start();
-                                                    }
-                                                });
+                                        } catch (Exception e) {
 
-                                                vvPropagandaMain.setOnErrorListener(new MediaPlayer.OnErrorListener() {
-                                                    @Override
-                                                    public boolean onError(MediaPlayer mp, int what, int extra) {
-                                                        vvPropagandaMain.stopPlayback();
-                                                        vvPropagandaMain.setVisibility(View.GONE);
-                                                        ivPropagandaMain.setVisibility(View.VISIBLE);
-                                                        ivPropagandaMain.setImageBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.pep003));
-                                                        return true;
-                                                    }
-                                                });
-
-                                            } catch (Exception e) {
-
-                                                Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
-                                                vvPropagandaMain.setVisibility(View.GONE);
-                                                ivPropagandaMain.setVisibility(View.VISIBLE);
-                                                ivPropagandaMain.setImageBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.pep003));
-
-                                            }
-
-                                        } else {
-
-                                            try {
-
-                                                vvPropagandaMain.setVisibility(View.GONE);
-                                                ivPropagandaMain.setVisibility(View.VISIBLE);
-
-//                                                Bitmap bm = decodeSampledBitmapFromResource(fileSDcard.getAbsolutePath(), 1870, 824);
-//                                                ivPropagandaMain.setImageBitmap(bm);
-                                                ivPropagandaMain.setImageURI( daosDcard.getListFiles().get(cont-1) );
-                                            } catch (Exception e) {
-
-                                                Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
-                                                vvPropagandaMain.setVisibility(View.GONE);
-                                                ivPropagandaMain.setVisibility(View.VISIBLE);
-                                                ivPropagandaMain.setImageBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.pep003));
-
-                                            }
+                                            android.os.Process.killProcess(android.os.Process.myPid());
+                                            System.exit(0);
 
                                         }
 
-                                    } catch (Exception e) {
+                                    } else {
+
+                                        try {
+
+                                            vvPropagandaMain.setVisibility(View.GONE);
+                                            ivPropagandaMain.setVisibility(View.VISIBLE);
+
+//                                            Bitmap bm = decodeSampledBitmapFromResource(returnPath(value), 1870, 824);
+//                                            ivPropagandaMain.setImageBitmap(bm);
+
+                                            showImage(returnPath(value));
+
+                                        } catch (Exception e) {
+
+                                            android.os.Process.killProcess(android.os.Process.myPid());
+                                            System.exit(0);
+
+                                        }
+
                                     }
 
                                 }
@@ -343,7 +303,6 @@ public class MainActivity extends AppCompatActivity {
                         Thread.sleep(sistema.getDEFAULT_TIME_SHOW_PROPAGANDA());
                     } catch (InterruptedException e) {
                         e.printStackTrace();
-                        Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
                     }
 
                 }
@@ -351,6 +310,56 @@ public class MainActivity extends AppCompatActivity {
             }
         }).start();
 
+    }
+
+    private void showImage(String path)   {
+
+        Bitmap bm = null;
+
+        Log.i("showImage","loading:"+path);
+        BitmapFactory.Options bfOptions=new BitmapFactory.Options();
+        bfOptions.inTempStorage=new byte[32 * 1024];
+
+
+        File file=new File(path);
+        FileInputStream fs=null;
+        try {
+            fs = new FileInputStream(file);
+        } catch (FileNotFoundException e) {
+            //TODO do something intelligent
+            e.printStackTrace();
+        }
+
+        try {
+            if(fs!=null) bm = BitmapFactory.decodeFileDescriptor(fs.getFD(), null, bfOptions);
+        } catch (IOException e) {
+            //TODO do something intelligent
+            e.printStackTrace();
+        } finally{
+            if(fs!=null) {
+                try {
+                    fs.close();
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            }
+        }
+        //bm=BitmapFactory.decodeFile(path, bfOptions); This one causes error: java.lang.OutOfMemoryError: bitmap size exceeds VM budget
+
+        ivPropagandaMain.setImageBitmap(bm);
+        //bm.recycle();
+        bm=null;
+
+    }
+
+    public String returnPath(String value){
+        for (File file : daosDcard.getListFiles()) {
+            if(file.getName().equals(value)){
+                return file.getAbsolutePath();
+            }
+        }
+        return null;
     }
 
     public static int calculateInSampleSize(BitmapFactory.Options options,
@@ -380,6 +389,7 @@ public class MainActivity extends AppCompatActivity {
                 reqHeight);
         options.inJustDecodeBounds = false;
         return BitmapFactory.decodeFile(strPath, options);
+
     }
 
     private void showAvisos() {
@@ -407,7 +417,6 @@ public class MainActivity extends AppCompatActivity {
 
                                 } catch (Exception e) {
                                     tvAvisosMain.setText(sistema.getDEFAULT_MENSSAGE());
-                                    Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
                                 }
 
                             }
@@ -418,7 +427,6 @@ public class MainActivity extends AppCompatActivity {
                         Thread.sleep(sistema.getDEFAULT_TIME_SHOW_AVISO());
                     } catch (InterruptedException e) {
                         e.printStackTrace();
-                        Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
                     }
 
                 }
@@ -441,23 +449,16 @@ public class MainActivity extends AppCompatActivity {
 
                         sistema.getDaoRss().setEnable(false);
 
-                        try {
+                        sistema.getmHandlerRss().post(new Runnable() {
 
-                            sistema.getmHandlerRss().post(new Runnable() {
+                            @Override
+                            public void run() {
 
-                                @Override
-                                public void run() {
+                                tvRssBottomMain.setText(sistema.getDaoRss().getRss());
 
-                                    tvRssBottomMain.setText(sistema.getDaoRss().getRss());
+                            }
 
-                                }
-
-                            });
-
-                        } catch (Exception e) {
-                            sistema.getDaoLog().SendMsgToTxt("problema ao exibir/atualizar rss");
-                            Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
-                        }
+                        });
 
                     }
 
@@ -486,7 +487,7 @@ public class MainActivity extends AppCompatActivity {
 
                             if (sistema.getDaoDolar().isEnable()) {
 
-                                valorDodolar = round(Double.parseDouble(sistema.getDaoDolar().getDolar()), 2);
+                                valorDodolar = sistema.round(Double.parseDouble(sistema.getDaoDolar().getDolar()), 2);
 
                                 if (String.valueOf(valorDodolar).length() == 3) {
                                     tvCotacaoDolarMain.setText("VALOR DO DOLAR " + valorDodolar + "0 REAIS");
@@ -517,7 +518,6 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         Thread.sleep(sistema.getDEFAULT_TIME_SHOW_TIME());
                     } catch (InterruptedException e) {
-                        Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(MainActivity.this, MainActivity.class));
                         e.printStackTrace();
                     }
 
@@ -542,54 +542,62 @@ public class MainActivity extends AppCompatActivity {
 
         showAvisos();
 
-        sistema.getDaoLog().SendMsgToTxt(" Itens exibidos na tela com sucesso ");
-
-    }
-
-    /**
-     * Restarts the activity
-     *
-     * @param context context
-     */
-    public static void restartApp(final Context context) {
-        Intent restart = context
-                .getPackageManager()
-                .getLaunchIntentForPackage(context.getPackageName());
-        restart.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        context.startActivity(restart);
-    }
-
-    public static double round(double value, int places) {
-        if (places < 0) throw new IllegalArgumentException();
-
-        long factor = (long) Math.pow(10, places);
-        value = value * factor;
-        long tmp = Math.round(value);
-        return (double) tmp / factor;
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-//        restartApp(this);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-//        restartApp(this);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-//        restartApp(this);
+        wakeLock.release();
+        android.os.Process.killProcess(android.os.Process.myPid());
+        System.exit(0);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        wakeLock.release();
+        android.os.Process.killProcess(android.os.Process.myPid());
+        System.exit(0);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-//        restartApp(this);
-
+        wakeLock.release();
+        try {
+            trimCache(getApplicationContext());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        android.os.Process.killProcess(android.os.Process.myPid());
+        System.exit(0);
     }
+
+    public void trimCache(Context context) {
+        try {
+            File dir = context.getCacheDir();
+            if (dir != null && dir.isDirectory()) {
+                deleteDir(dir);
+            }
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
+    }
+
+    public static boolean deleteDir(File dir) {
+        if (dir != null && dir.isDirectory()) {
+            String[] children = dir.list();
+            for (int i = 0; i < children.length; i++) {
+                boolean success = deleteDir(new File(dir, children[i]));
+                if (!success) {
+                    return false;
+                }
+            }
+        }
+
+        // The directory is now empty so delete it
+        return dir.delete();
+    }
+
+
 }

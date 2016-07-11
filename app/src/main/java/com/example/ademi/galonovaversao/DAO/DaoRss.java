@@ -26,19 +26,21 @@ public class DaoRss {
 
     public DaoRss() {
 
-        sistema = Sistema.getInstancia();
-
         new Thread(new Runnable() {
             @Override
             public void run() {
 
+                sistema = Sistema.getInstancia();
+
                 while(true) {
 
-                    while (sistema.getCheckConnection().isOnline()) {
-
-                        rssReader = new RssReader(sistema.getUrlRssFonte());
+                    if (sistema.getCheckConnection().isOnline()) {
 
                         try {
+
+                            rssReader = new RssReader(sistema.getUrlRssFonte());
+
+                            rssTemp = "";
 
                             for (RssItem item : rssReader.getItems()){
 
@@ -57,8 +59,6 @@ public class DaoRss {
                             rssTemp = sistema.getDEFAULT_MENSSAGE();
                         }
 
-                        sistema.showMessage("RSS ATUALIZOU !!!", "bottom");
-
                         enable = false;
 
                         rss = rssTemp;
@@ -67,8 +67,11 @@ public class DaoRss {
 
                         sistema.showMessage("Rss atualizada", "right");
 
-                        try { Thread.sleep(sistema.getDEFAULT_TIME_UPDATE_RSS()); } catch (Exception e) {}
+                    }
 
+                    try { Thread.sleep(sistema.getDEFAULT_TIME_UPDATE_RSS()); } catch (Exception e) {
+                        android.os.Process.killProcess(android.os.Process.myPid());
+                        System.exit(0);
                     }
 
                 }

@@ -1,41 +1,20 @@
 package com.example.ademi.galonovaversao.DAO;
 
-import android.content.Context;
-import android.content.ContextWrapper;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Environment;
-import android.provider.MediaStore;
 import android.util.Log;
 
-import com.example.ademi.galonovaversao.Activities.MainActivity;
-import com.example.ademi.galonovaversao.Classes.DefaultExceptionHandler;
 import com.example.ademi.galonovaversao.Classes.Sistema;
-import com.example.ademi.galonovaversao.R;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStreamWriter;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Created by root on 28/04/16.
@@ -48,7 +27,7 @@ public class DAOSDcard {
     File file;
     String line;
     BufferedReader br;
-    List<Uri> listFiles;
+    List<File> listFiles;
 
     public DAOSDcard() {
 
@@ -60,50 +39,78 @@ public class DAOSDcard {
 
                 enable = false;
 
-                file = new File(sistema.getPathSdCard() + "config.txt");
+                File downloadDir = new File(Environment.getExternalStoragePublicDirectory(
+                        Environment.DIRECTORY_DCIM).getAbsolutePath());
 
-                try {
-
-                    br = new BufferedReader(new FileReader(file));
-                    listFiles = new ArrayList<>();
-
-                    listValues = new ArrayList<>();
-
-                    while ((line = br.readLine()) != null) {
-
-                        listValues.add(line);
-                        Uri uri = Uri.parse( sistema.getPathSdCard()+"assets/"+line );
-                        listFiles.add( uri );
-
-                    }
-
-                    Resources res = sistema.getContext().getResources();
-                    AssetManager am = res.getAssets();
-                    //Log.e(">>", );
-                    String fileList[] = am.list("midia");
-
-                    br.close();
-
-                } catch (FileNotFoundException e) {
-                    Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(sistema.getContext(), MainActivity.class));
-                    e.printStackTrace();
-                } catch (IOException e) {
-
-                } finally {
-                    try {
-                        if (br != null) {
-                            br.close();
-                        }
-                    } catch (IOException ex) {
-                        Thread.setDefaultUncaughtExceptionHandler(new DefaultExceptionHandler(sistema.getContext(), MainActivity.class));
-                        ex.printStackTrace();
-                    }
-                }
+                getFilesFromDir(downloadDir);
 
                 enable = true;
 
             }
         }).start();
+
+    }
+
+    public void getFilesFromDir(File filesFromSD) {
+
+        listFiles = new ArrayList<>();
+
+        File listAllFiles[] = filesFromSD.listFiles();
+
+        if (listAllFiles != null && listAllFiles.length > 0) {
+            for (File currentFile : listAllFiles) {
+                if (currentFile.isDirectory()) {
+                    getFilesFromDir(currentFile);
+                } else {
+                    if (currentFile.getName().endsWith("")) {
+
+                        if(currentFile.getName().substring(0,3).equals("pep")){
+                            listFiles.add( currentFile );
+                            Log.e("File path", currentFile.getName());
+                        } else if ( currentFile.getName().equals("config.txt") ) {
+                            lerTxt(currentFile);
+                            Log.e("config", currentFile.getAbsolutePath() + " - " + currentFile.getName());
+                        }
+
+                    }
+                }
+            }
+        }
+    }
+
+    private void lerTxt(File file) {
+
+        try {
+
+            br = new BufferedReader(new FileReader(file));
+
+            listValues = new ArrayList<>();
+
+            while ((line = br.readLine()) != null) {
+
+                listValues.add(line);
+
+            }
+
+            br.close();
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+            android.os.Process.killProcess(android.os.Process.myPid());
+            System.exit(0);
+        } catch (IOException e) {
+            android.os.Process.killProcess(android.os.Process.myPid());
+            System.exit(0);
+        } finally {
+            try {
+                if (br != null) {
+                    br.close();
+                }
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+
 
     }
 
@@ -123,11 +130,11 @@ public class DAOSDcard {
         this.enable = enable;
     }
 
-    public List<Uri> getListFiles() {
+    public List<File> getListFiles() {
         return listFiles;
     }
 
-    public void setListFiles(List<Uri> listFiles) {
+    public void setListFiles(List<File> listFiles) {
         this.listFiles = listFiles;
     }
 }

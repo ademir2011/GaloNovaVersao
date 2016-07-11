@@ -39,9 +39,10 @@ public class CheckConnection {
                         urlc.getContentLength() == 0);
             } catch (IOException e) {
                 Log.e(">", "Error checking internet connection", e);
+                return false;
             }
         } else {
-            Log.d(">", "No network available!");
+            Log.e(">", "No network available!");
         }
 
         return false;

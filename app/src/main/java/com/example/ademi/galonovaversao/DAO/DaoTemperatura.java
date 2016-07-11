@@ -23,15 +23,15 @@ public class DaoTemperatura {
 
     public DaoTemperatura() {
 
-        sistema = Sistema.getInstancia();
-
         new Thread(new Runnable() {
             @Override
             public void run() {
 
+                sistema = Sistema.getInstancia();
+
                 while (true) {
 
-                    while (sistema.getCheckConnection().isOnline()) {
+                    if (sistema.getCheckConnection().isOnline()) {
 
                         OkHttpClient client = new OkHttpClient();
 
@@ -41,11 +41,11 @@ public class DaoTemperatura {
 
                         try {
 
+                            temperaturaTemp = 0;
+
                             response = client.newCall(request).execute();
 
-                            String json = null;
-
-                            json = response.body().string();
+                            String json = response.body().string();
 
                             JSONObject jsonObject = new JSONObject(json);
 
@@ -66,11 +66,11 @@ public class DaoTemperatura {
 
                         enable = true;
 
-                        try {
-                            Thread.sleep(sistema.getDEFAULT_TIME_UPDATE_TEMPERATURA());
-                        } catch (InterruptedException e) {
-                        }
+                    }
 
+                    try { Thread.sleep(sistema.getDEFAULT_TIME_UPDATE_TEMPERATURA()); } catch (InterruptedException e) {
+                        android.os.Process.killProcess(android.os.Process.myPid());
+                        System.exit(0);
                     }
 
                 }
